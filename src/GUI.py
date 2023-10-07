@@ -2,13 +2,16 @@ import sys
 import matplotlib
 matplotlib.use('Qt5Agg')
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import QCoreApplication, QDir, Qt, QFileInfo
+from PyQt6.QtCore import (QCoreApplication, QDir, QObject, Qt, 
+                          QFileInfo, pyqtSignal as Signal, pyqtSlot as Slot)
+
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtWidgets import (QComboBox, QFileDialog, QLabel, QPushButton, QStatusBar,
                              QWidget, QApplication, QMainWindow,
                              QSplitter, QVBoxLayout, QHBoxLayout, QGridLayout, 
                              QMenu, QMenuBar, QSizePolicy, QProgressBar,
                              )
+from PyQt6.QtCore import QThread
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PIL import Image
@@ -20,14 +23,27 @@ import scipy as sp
 import cv2
 import sounddevice as sd
 import time
-import threading
+
 import resources
 
 # Global Variables
 IMAGE_DIR = "images/"
 
+class PlayAudio(QThread):
+    def __init__(self, audio):
+        super().__init__()
+        self.audio = audio
+
+    def run(self):
+        print("DD")
+        sd.play(self.audio)
+        time.sleep(len(self.audio) * 0.1)
+        sd.stop()
+
 # Main Window class
 class MainWindow(QMainWindow):
+    music_signal = Signal(int)
+
     def __init__(self, parent = None):
         super().__init__()
         self.InitGUI()
@@ -70,6 +86,20 @@ class MainWindow(QMainWindow):
         self.mapComboBox = QComboBox()
         self.mapComboBox.addItem("Color to Frequency")
 
+        # Sample Rate Combo Box
+        self.sampleRateLabel = QLabel("Sample Rate")
+        self.sampleRateComboBox = QComboBox()
+
+        self.sampleRateComboBox.addItems(["22050 Hz", "44100 Hz"])
+            
+        # Sonify Button
+
+        self.sonifyButton = QPushButton(QIcon(":/icons/sonify.png"), "")
+
+        self.sonifyButton.setToolTip("Sonify")
+        self.sonifyButton.setDisabled(True)
+        self.sonifyButton.clicked.connect(self.Sonify)
+
         # Play Button
         self.playButton = QPushButton(QIcon(":/icons/play.png"), "")
         self.playButton.setToolTip("Play")
@@ -81,11 +111,14 @@ class MainWindow(QMainWindow):
         self.drawerLayout.addWidget(self.traverseComboBox, 0, 1)
         self.drawerLayout.addWidget(self.mapLabel, 1, 0)
         self.drawerLayout.addWidget(self.mapComboBox, 1, 1)
-        self.drawerLayout.addWidget(self.playButton, 2, 0, 1, 2, Qt.AlignmentFlag.AlignHCenter)
+        self.drawerLayout.addWidget(self.sampleRateLabel, 2, 0)
+        self.drawerLayout.addWidget(self.sampleRateComboBox, 2, 1)
+        self.drawerLayout.addWidget(self.sonifyButton, 4, 0, 1, 1, Qt.AlignmentFlag.AlignHCenter)
+        self.drawerLayout.addWidget(self.playButton, 4, 1, 1, 1, Qt.AlignmentFlag.AlignHCenter)
 
         # Drawer Max Width
         self.drawer.setMaximumWidth(300)
-
+    
     # Exit Function
     def Exit(self):
         # TODO: handle ask on save
@@ -93,7 +126,6 @@ class MainWindow(QMainWindow):
 
     # Function to handle opening files
     def FileOpen(self, fileName = None):
-        self.progress_fileOpen = QProgressBar()
         if fileName is None:
             self.file = QFileDialog.getOpenFileName(self, "Open File",
                                                     filter = "Image Files (*.jpg *.jpeg *.png *.tiff *.hdf5 *.fits)")[0]
@@ -102,11 +134,10 @@ class MainWindow(QMainWindow):
                 return
         else:
             self.file = fileName
-
+        
         self.Msg("Loading Image", 2)
         self.ReadImage()
         self.Msg("Image Loaded", 5)
-        self.playButton.setEnabled(True)
 
     def FileSize(self):
         return str(QFileInfo(self.file).size())
@@ -157,10 +188,12 @@ class MainWindow(QMainWindow):
         self.menubar = QMenuBar()
         self.fileMenu = QMenu("&File")
         self.editMenu = QMenu("&Edit")
+        self.viewMenu = QMenu("&View")
         self.aboutMenu = QMenu("&About")
 
         self.menubar.addMenu(self.fileMenu)
         self.menubar.addMenu(self.editMenu)
+        self.menubar.addMenu(self.viewMenu)
         self.menubar.addMenu(self.aboutMenu)
 
         # File Menu Buttons
@@ -181,6 +214,26 @@ class MainWindow(QMainWindow):
         self.action_edit_prefs = QAction(QIcon(":icons/prefs.png"), "Preferences", self)
 
         self.editMenu.addAction(self.action_edit_prefs)
+
+
+        # View Menu Buttons
+
+        self.action_view_overlay = QMenu("Overlay", self)
+        
+        self.action_view_overlay_line = QAction("Line", self)
+        self.action_view_overlay_line.setChecked(True)
+        self.action_view_overlay_line.setCheckable(True)
+
+        self.action_view_overlay_sound_graph = QAction("Sound Graph", self)
+        self.action_view_overlay_sound_graph.setChecked(True)
+        self.action_view_overlay_sound_graph.setCheckable(True)
+
+        self.action_view_overlay.addAction(self.action_view_overlay_line)
+        self.action_view_overlay.addAction(self.action_view_overlay_sound_graph)
+
+    
+        self.viewMenu.addMenu(self.action_view_overlay)
+
         self.setMenuBar(self.menubar)
 
     # Initialisation function for the statusbar
@@ -213,36 +266,33 @@ class MainWindow(QMainWindow):
         self.mainSplitter.addWidget(self.canvas)
         self.mainLayout.addWidget(self.mainSplitter)
 
-    # Function that handles the play button click
+    #Function that handles the play button click
     def Play(self):
-        self.PlayAudio()
-        self.MoveHorizLine()
+        self.worker = PlayAudio(self.song)
+        self.worker.start()
 
-    # Function to play audio
-    def PlayAudio(self):
-        sd.play(self.song)
-        time.sleep(5)
-        sd.stop()
-
-    def MoveHorizLine(self):
-        pass
+        #self.worker.progress.connect(self.updateMusic)
+        # self.worker.finished.connect(self.audioFinished)
 
     # Function for reading the image
     def ReadImage(self):
         self.img = Image.open(self.file)
         self.imghsv = cv2.cvtColor(np.array(self.img), cv2.COLOR_BGR2HSV)
-        self.ax.imshow(self.imghsv)
+        # self.ax.imshow(self.imghsv)
+        self.ax.imshow(self.img)
         self.UpdateCanvas()
 
         # Update the statusbar info
         self.status_fileName.setText(self.file)
         self.status_fileSize.setText(self.FileSize())
         self.status_fileDim.setText(str(self.imghsv.shape))
-
-        self.Sonify()
+        self.sonifyButton.setEnabled(True)
 
     # Function that handles the sonification
     def Sonify(self):
+        self.progressbar_sonify = QProgressBar()
+        self.statusbar.addPermanentWidget(self.progressbar_sonify)
+
         self.hues = []
         self.img_height, self.img_width, self.img_nlayers = self.imghsv.shape
 
@@ -270,9 +320,12 @@ class MainWindow(QMainWindow):
         amp = 0.5
 
         for i in range(len(frequencies)):
+            self.progressbar_sonify.setValue(int(100 % (i + 1)))
             val = frequencies[i]
             note = amp * np.sin(2 * np.pi * val * self.t)
             self.song = np.concatenate([self.song, note])
+
+        self.playButton.setEnabled(True)
 
     # Helper function for showing message in the statusbar
     def Msg(self, msg = None, t = 1):
