@@ -299,9 +299,9 @@ class MainWindow(QMainWindow):
         self.progressbar_sonify = QProgressBar()
         self.statusbar.addPermanentWidget(self.progressbar_sonify)
 
-        self.hues = []
         self.img_height, self.img_width, self.img_nlayers = self.imghsv.shape
 
+        self.hues = []
         self.MapHorizontal_LR(5, 5)
 
         self.hues = pd.DataFrame(self.hues, columns= ["hues"])
@@ -317,7 +317,7 @@ class MainWindow(QMainWindow):
 
         self.SAMPLE_RATE = 22050
 
-        T = 1
+        T = 0.1
 
         self.t = np.linspace(0, T, int(T * self.SAMPLE_RATE), endpoint = False)
 
@@ -326,7 +326,7 @@ class MainWindow(QMainWindow):
         amp = 0.5
 
         for i in range(len(frequencies)):
-            self.progressbar_sonify.setValue(10)
+            self.progressbar_sonify.setValue(int(i / len(frequencies) * 100))
             val = frequencies[i]
             note = amp * np.sin(2 * np.pi * val * self.t)
             self.song = np.concatenate([self.song, note])
@@ -347,13 +347,14 @@ class MainWindow(QMainWindow):
     #         for j in range(0, self.img_width, int(self.img_width / skipw)):
     #             hue = imghsv[i][j][0] # Take H value
     #             self.hues.append(hue)
+    
 
     def MapHorizontal_LR(self, skipw, skiph):
         for j in range(0, self.img_width, int(skipw % self.img_width)):
             for i in range(0, self.img_height, int(skiph % self.img_height)):
                 hue = self.imghsv[i][j][0]
                 self.hues.append(hue)
-        print(self.hues)
+        print(len(self.hues))
 
     # def map_vertical(self, skipw = self.img_width, skiph = self.img_height):
     #     for j in range(1, self.img_width, int(self.img_width / skipw)):
