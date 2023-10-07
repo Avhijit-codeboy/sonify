@@ -110,23 +110,23 @@ class MainWindow(QMainWindow):
 
     def Hue2freq(self, h,scale_freqs):
         thresholds = [26 , 52 , 78 , 104,  128 , 154 , 180]
-        note = scale_freqs[0]
+        note = scale_freqs['C4']
         if (h <= thresholds[0]):
-            note = scale_freqs[0]
+            note = scale_freqs['C4']
         elif (h > thresholds[0]) & (h <= thresholds[1]):
-            note = scale_freqs[1]
+            note = scale_freqs['a1']
         elif (h > thresholds[1]) & (h <= thresholds[2]):
-            note = scale_freqs[2]
+            note = scale_freqs['C1']
         elif (h > thresholds[2]) & (h <= thresholds[3]):
-            note = scale_freqs[3]
+            note = scale_freqs['D4']
         elif (h > thresholds[3]) & (h <= thresholds[4]):    
-            note = scale_freqs[4]
+            note = scale_freqs['a3']
         elif (h > thresholds[4]) & (h <= thresholds[5]):
-            note = scale_freqs[5]
+            note = scale_freqs['C4']
         elif (h > thresholds[5]) & (h <= thresholds[6]):
-            note = scale_freqs[6]
+            note = scale_freqs['f3']
         else:
-            note = scale_freqs[0]
+            note = scale_freqs['C4']
         return note
 
     # Initialisation function for the GUI
@@ -212,8 +212,8 @@ class MainWindow(QMainWindow):
 
     # Function that handles the play button click
     def Play(self):
-        # self.PlayAudio()
-        self.MoveHorizLine()
+        self.PlayAudio()
+        #self.MoveHorizLine()
 
     # Function to play audio
     def PlayAudio(self):
@@ -249,14 +249,27 @@ class MainWindow(QMainWindow):
 
         #Define frequencies that make up A-Harmonic Minor Scale
         scale_freqs = [220.00, 246.94 ,261.63, 293.66, 329.63, 349.23, 415.30] 
-
-        self.hues['notes'] = self.hues.apply(lambda row : self.Hue2freq(row['hues'],scale_freqs), axis = 1)
+        scale_freqs2 = self.get_Piano_Notes()
+        #piano_freqs = self.get_Piano_Notes()
+        
+        """for musical_notes in piano_freqs:
+            sine_wave = self.get_sine_wave(frequency = piano_freqs[musical_notes], duration=0.1, amplitude=0.5)
+            factor = self.apply_fft_on_wave(sine_wave,piano_freqs[musical_notes],sample_rate=44100)
+            note = self.apply_overtones(piano_freqs[musical_notes],duration=0.1,factor=factor)
+            weights = self.get_adsr_weights(piano_freqs[musical_notes], duration=0.1, length=[0.05, 0.25, 0.55, 0.15],
+                                decay=[0.075,0.02,0.005,0.1], sustain_level=0.1)
+            data = note*weights
+            data = data*(0.5/np.max(data))
+            scale_freqs2.append(data)
+        #print(scale_freqs2)"""
+        self.hues['notes'] = self.hues.apply(lambda row : self.Hue2freq(row['hues'],scale_freqs2), axis = 1)
 
         frequencies = self.hues['notes'].to_numpy()
 
-        self.song = np.array([])
+        #self.song = np.array([])
+        self.song = self.hues['notes']
 
-        self.SAMPLE_RATE = 22050
+        self.SAMPLE_RATE = 44100
 
         T = 0.1
 
@@ -269,7 +282,110 @@ class MainWindow(QMainWindow):
         for i in range(len(frequencies)):
             val = frequencies[i]
             note = amp * np.sin(2 * np.pi * val * self.t)
-            self.song = np.concatenate([self.song, note])
+            harmonics = [1.0, 0.5, 0.3, 0.2, 0.1]
+            frequencies2 = [note, 2 * note, 3 * note, 4 * note, 5 * note]
+            piano_waveform = np.zeros_like(note)
+            # Add harmonics to the sine wave
+            for i, harmonic in enumerate(harmonics):
+                piano_waveform += harmonic * np.sin(2 * np.pi * frequencies2[i] * self.t)
+            # Normalize the waveform
+            piano_waveform /= np.max(np.abs(piano_waveform))
+            # Apply an envelope (ADSR envelope)
+            envelope = sp.signal.triang(int(self.SAMPLE_RATE * T), 0.1)  # Adjust envelope parameters as needed
+            piano_waveform *= envelope
+
+
+            self.song = np.concatenate([self.song, piano_waveform])
+        
+        
+    """""
+    Piano code
+    """""
+    def get_Piano_Notes(self):   
+        # White keys are in Uppercase and black keys (sharps) are in lowercase
+        octave = ['C', 'c', 'D', 'd', 'E', 'F', 'f', 'G', 'g', 'A', 'a', 'B'] 
+        base_freq = 440 #Frequency of Note A4
+        keys = np.array([x+str(y) for y in range(0,9) for x in octave])
+        # Trim to standard 88 keys
+        start = np.where(keys == 'A0')[0][0]
+        end = np.where(keys == 'C8')[0][0]
+        keys = keys[start:end+1]
+
+        note_freqs = dict(zip(keys, [2**((n+1-49)/12)*base_freq for n in range(len(keys))]))
+        note_freqs[''] = 0.0 # stop
+
+        return note_freqs
+    
+    def get_sine_wave(self,frequency, duration, sample_rate=44100, amplitude=0.5):
+        t = np.linspace(0, duration, int(sample_rate*duration)) # Time axis
+        wave = amplitude*np.sin(2*np.pi*frequency*t)
+        return wave
+    #FFT
+    def apply_fft_on_wave(self,note_frequency,note_frequency2,sample_rate):
+        t = np.arange(note_frequency.shape[0])
+        freq = np.fft.fftfreq(t.shape[-1])*sample_rate
+        sp = np.fft.fft(note_frequency)
+        # Get positive frequency
+        idx = np.where(freq > 0)[0]
+        freq = freq[idx]
+        sp = sp[idx]
+        # Get dominant frequencies
+        sort = np.argsort(-abs(sp.real))[:100]
+        dom_freq = freq[sort]
+        # Round and calculate amplitude ratio
+        freq_ratio = np.round(dom_freq/note_frequency2)
+        unique_freq_ratio = np.unique(freq_ratio)
+        amp_ratio = abs(sp.real[sort]/np.sum(sp.real[sort]))
+        factor = np.zeros((int(unique_freq_ratio[-1]), ))
+        for i in range(factor.shape[0]):
+            idx = np.where(freq_ratio==i+1)[0]
+            factor[i] = np.sum(amp_ratio[idx])
+        factor = factor/np.sum(factor)
+        return factor
+    #apply_overtones(note_frequency,t,factor,sample_rate,amplitude=1)
+    def apply_overtones(self,note_frequency, duration, factor, sample_rate=44100, amplitude=0.5):
+        assert abs(1-sum(factor)) < 1e-8
+        frequencies = np.minimum(np.array([note_frequency*(x+1) for x in range(len(factor))]), sample_rate//2)
+        amplitudes = np.array([amplitude*x for x in factor])
+        fundamental = self.get_sine_wave(frequencies[0], duration, sample_rate, amplitudes[0])
+        for i in range(1, len(factor)):
+            overtone = self.get_sine_wave(frequencies[i], duration, sample_rate, amplitudes[i])
+            fundamental += overtone
+        return fundamental
+    
+    def get_adsr_weights(self,frequency, duration, length, decay, sustain_level, sample_rate=44100):
+        assert abs(sum(length)-1) < 1e-8
+        assert len(length) ==len(decay) == 4
+        intervals = int(duration*frequency)
+        len_A = np.maximum(int(intervals*length[0]),1)
+        len_D = np.maximum(int(intervals*length[1]),1)
+        len_S = np.maximum(int(intervals*length[2]),1)
+        len_R = np.maximum(int(intervals*length[3]),1)
+        
+        decay_A = decay[0]
+        decay_D = decay[1]
+        decay_S = decay[2]
+        decay_R = decay[3]
+        
+        A = 1/np.array([(1-decay_A)**n for n in range(len_A)])
+        A = A/np.nanmax(A)
+        D = np.array([(1-decay_D)**n for n in range(len_D)])
+        D = D*(1-sustain_level)+sustain_level
+        S = np.array([(1-decay_S)**n for n in range(len_S)])
+        S = S*sustain_level
+        R = np.array([(1-decay_R)**n for n in range(len_R)])
+        R = R*S[-1]
+        
+        weights = np.concatenate((A,D,S,R))
+        smoothing = np.array([0.1*(1-0.1)**n for n in range(5)])
+        smoothing = smoothing/np.nansum(smoothing)
+        weights = np.convolve(weights, smoothing, mode='same')
+        
+        weights = np.repeat(weights, int(sample_rate*duration/intervals))
+        tail = int(sample_rate*duration-weights.shape[0])
+        if tail > 0:
+            weights = np.concatenate((weights, weights[-1]-weights[-1]/tail*np.arange(tail)))
+        return weights
 
     # Helper function for showing message in the statusbar
     def Msg(self, msg = None, t = 1):
@@ -298,20 +414,6 @@ class MainWindow(QMainWindow):
     #             hue = imghsv[i][j][0]
     #             self.hues.append(hue)
 
-    def Get_piano_notes(self):   
-        # White keys are in Uppercase and black keys (sharps) are in lowercase
-        octave = ['C', 'c', 'D', 'd', 'E', 'F', 'f', 'G', 'g', 'A', 'a', 'B'] 
-        base_freq = 440 #Frequency of Note A4
-        keys = np.array([x+str(y) for y in range(0,9) for x in octave])
-        # Trim to standard 88 keys
-        start = np.where(keys == 'A0')[0][0]
-        end = np.where(keys == 'C8')[0][0]
-        keys = keys[start:end+1]
-
-        note_freqs = dict(zip(keys, [2**((n+1-49)/12)*base_freq for n in range(len(keys))]))
-        note_freqs[''] = 0.0 # stop
-
-        return note_freqs
 """
 note_freqs = get_piano_notes()
 scale_intervals = ['A','a','B','C','c','D','d','E','F','f','G','g']
@@ -322,6 +424,14 @@ index = scale_intervals.index('a')
 #Redefine scale interval so that scale intervals begins with whichKey
 new_scale = scale_intervals[index:12] + scale_intervals[:index]
 
+"""
+
+
+
+
+    
+"""
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
 """
 if __name__ == "__main__":
     app = QApplication(sys.argv)
