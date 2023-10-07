@@ -35,9 +35,9 @@ class PlayAudio(QThread):
         self.audio = audio
 
     def run(self):
-        print("DD")
         sd.play(self.audio)
-        time.sleep(len(self.audio) * 0.1)
+
+    def stop(self):
         sd.stop()
 
 # Main Window class
@@ -94,7 +94,7 @@ class MainWindow(QMainWindow):
             
         # Sonify Button
 
-        self.sonifyButton = QPushButton(QIcon(":/icons/sonify.png"), "")
+        self.sonifyButton = QPushButton(QIcon(":/icons/sonify.png"), "Sonify")
 
         self.sonifyButton.setToolTip("Sonify")
         self.sonifyButton.setDisabled(True)
@@ -268,8 +268,14 @@ class MainWindow(QMainWindow):
 
     #Function that handles the play button click
     def Play(self):
+        self.is_music_playing = True
+        self.playButton.setIcon(QIcon(":/icons/stop.png"))
         self.worker = PlayAudio(self.song)
         self.worker.start()
+    
+    def Stop(self):
+        self.worker.stop()
+        self.is_music_playing = False
 
         #self.worker.progress.connect(self.updateMusic)
         # self.worker.finished.connect(self.audioFinished)
@@ -311,7 +317,7 @@ class MainWindow(QMainWindow):
 
         self.SAMPLE_RATE = 22050
 
-        T = 0.1
+        T = 1
 
         self.t = np.linspace(0, T, int(T * self.SAMPLE_RATE), endpoint = False)
 
@@ -320,10 +326,11 @@ class MainWindow(QMainWindow):
         amp = 0.5
 
         for i in range(len(frequencies)):
-            self.progressbar_sonify.setValue(int(100 % (i + 1)))
+            self.progressbar_sonify.setValue(10)
             val = frequencies[i]
             note = amp * np.sin(2 * np.pi * val * self.t)
             self.song = np.concatenate([self.song, note])
+        self.statusbar.removeWidget(self.progressbar_sonify)
 
         self.playButton.setEnabled(True)
 
