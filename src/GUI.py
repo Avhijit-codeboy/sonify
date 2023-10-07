@@ -4,9 +4,10 @@ matplotlib.use('Qt5Agg')
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import QCoreApplication, QDir, Qt, QFileInfo
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
-from PyQt6.QtWidgets import (QComboBox, QFileDialog, QLabel, QPushButton, QStatusBar, QWidget, QApplication, QMainWindow,
+from PyQt6.QtWidgets import (QComboBox, QFileDialog, QLabel, QPushButton, QStatusBar,
+                             QWidget, QApplication, QMainWindow,
                              QSplitter, QVBoxLayout, QHBoxLayout, QGridLayout, 
-                             QMenu, QMenuBar, QSizePolicy
+                             QMenu, QMenuBar, QSizePolicy, QProgressBar,
                              )
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
@@ -92,17 +93,19 @@ class MainWindow(QMainWindow):
 
     # Function to handle opening files
     def FileOpen(self, fileName = None):
+        self.progress_fileOpen = QProgressBar()
         if fileName is None:
             self.file = QFileDialog.getOpenFileName(self, "Open File",
                                                     filter = "Image Files (*.jpg *.jpeg *.png *.tiff *.hdf5 *.fits)")[0]
             if self.file == "":
                 self.Msg("Please select an image", 10)
                 return
+        else:
+            self.file = fileName
 
-            self.Msg("Loading Image", 2)
-            self.ReadImage()
-            self.Msg("Image Loaded", 5)
-
+        self.Msg("Loading Image", 2)
+        self.ReadImage()
+        self.Msg("Image Loaded", 5)
         self.playButton.setEnabled(True)
 
     def FileSize(self):
@@ -212,7 +215,7 @@ class MainWindow(QMainWindow):
 
     # Function that handles the play button click
     def Play(self):
-        # self.PlayAudio()
+        self.PlayAudio()
         self.MoveHorizLine()
 
     # Function to play audio
@@ -228,7 +231,7 @@ class MainWindow(QMainWindow):
     def ReadImage(self):
         self.img = Image.open(self.file)
         self.imghsv = cv2.cvtColor(np.array(self.img), cv2.COLOR_BGR2HSV)
-        self.ax.imshow(self.img)
+        self.ax.imshow(self.imghsv)
         self.UpdateCanvas()
 
         # Update the statusbar info
@@ -243,7 +246,7 @@ class MainWindow(QMainWindow):
         self.hues = []
         self.img_height, self.img_width, self.img_nlayers = self.imghsv.shape
 
-        self.MapHorizontal_LR(4, 10)
+        self.MapHorizontal_LR(5, 5)
 
         self.hues = pd.DataFrame(self.hues, columns= ["hues"])
 
@@ -290,7 +293,7 @@ class MainWindow(QMainWindow):
             for i in range(0, self.img_height, int(skiph % self.img_height)):
                 hue = self.imghsv[i][j][0]
                 self.hues.append(hue)
-                # np.concatenate([self.hues, hue])
+        print(self.hues)
 
     # def map_vertical(self, skipw = self.img_width, skiph = self.img_height):
     #     for j in range(1, self.img_width, int(self.img_width / skipw)):
