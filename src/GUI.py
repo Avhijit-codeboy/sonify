@@ -22,7 +22,6 @@ import pandas as pd
 import scipy as sp
 import cv2
 import sounddevice as sd
-import time
 
 import resources
 
@@ -40,15 +39,6 @@ class PlayAudio(QThread):
     def stop(self):
         sd.stop()
         self.exit()
-
-class MapHorizLine(QThread):
-    def __init__(self, fig):
-        super().__init__()
-        self.fig = fig
-
-    def run(self):
-
-
 
 # Main Window class
 class MainWindow(QMainWindow):
@@ -372,10 +362,14 @@ class MainWindow(QMainWindow):
     # Helper function for showing message in the statusbar
     def Msg(self, msg = None, t = 1):
         self.statusbar.showMessage(msg, t * 1000)
+    
+    def MoveHorizLine(self):
+        vl = self.ax.axvline(0, ls = '-', color = 'r', lw = 1, zorder = 10)
 
-    # Helper function to update canvas
-    def UpdateCanvas(self):
-        self.canvas.draw()
+    def animateHorizLine(self, vl, period):
+        t = i * period / 1000
+        vl.set_data([t, t])
+        return vl,
 
     # def map_stack(self, skipw, skiph):
     #     for i in range(0, self.img_height, int(self.img_height / skiph)):
@@ -383,7 +377,7 @@ class MainWindow(QMainWindow):
     #             hue = imghsv[i][j][0] # Take H value
     #             self.hues.append(hue)
     
-
+    
     def MapHorizontal_LR(self, skipw, skiph):
         for j in range(0, self.img_width, int(skipw % self.img_width)):
             for i in range(0, self.img_height, int(skiph % self.img_height)):
@@ -404,6 +398,7 @@ class MainWindow(QMainWindow):
     #             hue = imghsv[i][j][0]
     #             self.hues.append(hue)
 
+    # Piano notes function
     def Get_piano_notes(self):   
         # White keys are in Uppercase and black keys (sharps) are in lowercase
         octave = ['C', 'c', 'D', 'd', 'E', 'F', 'f', 'G', 'g', 'A', 'a', 'B'] 
@@ -418,6 +413,11 @@ class MainWindow(QMainWindow):
         note_freqs[''] = 0.0 # stop
 
         return note_freqs
+
+    # Helper function to update canvas
+    def UpdateCanvas(self):
+        self.canvas.draw()
+
 """
 note_freqs = get_piano_notes()
 scale_intervals = ['A','a','B','C','c','D','d','E','F','f','G','g']
