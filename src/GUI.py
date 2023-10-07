@@ -39,6 +39,16 @@ class PlayAudio(QThread):
 
     def stop(self):
         sd.stop()
+        self.exit()
+
+class MapHorizLine(QThread):
+    def __init__(self, fig):
+        super().__init__()
+        self.fig = fig
+
+    def run(self):
+
+
 
 # Main Window class
 class MainWindow(QMainWindow):
@@ -46,8 +56,12 @@ class MainWindow(QMainWindow):
 
     def __init__(self, parent = None):
         super().__init__()
+        self.HandleBools()
         self.InitGUI()
         self.show()
+    
+    def HandleBools(self):
+        self.is_music_playing = False
 
     # Function for creating the image pane
     def CreateImagePane(self):
@@ -94,14 +108,13 @@ class MainWindow(QMainWindow):
             
         # Sonify Button
 
-        self.sonifyButton = QPushButton(QIcon(":/icons/sonify.png"), "Sonify")
-
+        self.sonifyButton = QPushButton(QIcon(":/icons/sonify.png"), " Sonify")
         self.sonifyButton.setToolTip("Sonify")
         self.sonifyButton.setDisabled(True)
         self.sonifyButton.clicked.connect(self.Sonify)
 
         # Play Button
-        self.playButton = QPushButton(QIcon(":/icons/play.png"), "")
+        self.playButton = QPushButton(QIcon(":/icons/play.png"), " Play")
         self.playButton.setToolTip("Play")
         self.playButton.setEnabled(False)
         self.playButton.clicked.connect(self.Play)
@@ -113,10 +126,18 @@ class MainWindow(QMainWindow):
         self.drawerLayout.addWidget(self.mapComboBox, 1, 1)
         self.drawerLayout.addWidget(self.sampleRateLabel, 2, 0)
         self.drawerLayout.addWidget(self.sampleRateComboBox, 2, 1)
-        self.drawerLayout.addWidget(self.sonifyButton, 4, 0, 1, 1, Qt.AlignmentFlag.AlignHCenter)
-        self.drawerLayout.addWidget(self.playButton, 4, 1, 1, 1, Qt.AlignmentFlag.AlignHCenter)
+
+        self.drawerBtnsLayout = QHBoxLayout()
+        self.drawerBtnsLayout.addWidget(self.sonifyButton)
+        self.drawerBtnsLayout.addWidget(self.playButton)
+        self.drawerLayout.addLayout(self.drawerBtnsLayout, 4, 0, 1, 2)
+
+        self.drawerLayout.setRowStretch(10, 1)
+        # self.drawerLayout.addWidget(self.sonifyButton, 4, 0, 1, 1)
+        # self.drawerLayout.addWidget(self.playButton, 4, 1, 1, 1)
 
         # Drawer Max Width
+        self.drawer.setMinimumWidth(self.drawer.minimumWidth())
         self.drawer.setMaximumWidth(300)
     
     # Exit Function
@@ -189,12 +210,12 @@ class MainWindow(QMainWindow):
         self.fileMenu = QMenu("&File")
         self.editMenu = QMenu("&Edit")
         self.viewMenu = QMenu("&View")
-        self.aboutMenu = QMenu("&About")
+        self.helpMenu = QMenu("&Help")
 
         self.menubar.addMenu(self.fileMenu)
         self.menubar.addMenu(self.editMenu)
         self.menubar.addMenu(self.viewMenu)
-        self.menubar.addMenu(self.aboutMenu)
+        self.menubar.addMenu(self.helpMenu)
 
         # File Menu Buttons
 
@@ -215,10 +236,10 @@ class MainWindow(QMainWindow):
 
         self.editMenu.addAction(self.action_edit_prefs)
 
-
         # View Menu Buttons
 
         self.action_view_overlay = QMenu("Overlay", self)
+        self.action_view_overlay.setIcon(QIcon(":/icons/overlay.png"))
         
         self.action_view_overlay_line = QAction("Line", self)
         self.action_view_overlay_line.setChecked(True)
@@ -230,9 +251,14 @@ class MainWindow(QMainWindow):
 
         self.action_view_overlay.addAction(self.action_view_overlay_line)
         self.action_view_overlay.addAction(self.action_view_overlay_sound_graph)
-
     
         self.viewMenu.addMenu(self.action_view_overlay)
+
+        # Help Menu
+        
+        self.action_help_about_sonify = QAction("About Sonify", self)
+
+        self.helpMenu.addAction(self.action_help_about_sonify)
 
         self.setMenuBar(self.menubar)
 
@@ -268,8 +294,17 @@ class MainWindow(QMainWindow):
 
     #Function that handles the play button click
     def Play(self):
+        if self.is_music_playing:
+            self.is_music_playing = False
+            self.worker.stop()
+
+            self.playButton.setIcon(QIcon(":/icons/play.png"))
+            self.playButton.setText(" Play")
+            return
+
         self.is_music_playing = True
         self.playButton.setIcon(QIcon(":/icons/stop.png"))
+        self.playButton.setText(" Stop")
         self.worker = PlayAudio(self.song)
         self.worker.start()
     
@@ -315,11 +350,11 @@ class MainWindow(QMainWindow):
 
         self.song = np.array([])
 
-        self.SAMPLE_RATE = 22050
+        self.SAMPLE_RATE = int(self.sampleRateComboBox.currentText().split("Hz")[0])
 
-        T = 0.1
+        self.T = 0.1
 
-        self.t = np.linspace(0, T, int(T * self.SAMPLE_RATE), endpoint = False)
+        self.t = np.linspace(0, self.T, int(self.T * self.SAMPLE_RATE), endpoint = False)
 
         # npixels = 100
 
@@ -354,7 +389,14 @@ class MainWindow(QMainWindow):
             for i in range(0, self.img_height, int(skiph % self.img_height)):
                 hue = self.imghsv[i][j][0]
                 self.hues.append(hue)
-        print(len(self.hues))
+
+    # def MapHorizontal_LR(self, skipw, skiph):
+    #     self.hues = np.array([])
+    #     self.hues.resize((int(self.img_width / skipw) * int(self.img_height / skiph), ))
+    #     for j in range(0, self.img_width, int(skipw % self.img_width)):
+    #         for i in range(0, self.img_height, int(skiph % self.img_height)):
+    #             hue = self.imghsv[i][j][0]
+    #             self.hues[j * int(self.img_height % skiph) + i] = hue
 
     # def map_vertical(self, skipw = self.img_width, skiph = self.img_height):
     #     for j in range(1, self.img_width, int(self.img_width / skipw)):
