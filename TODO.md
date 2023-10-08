@@ -1,3 +1,3 @@
-1. [x] Open file
-2. [ ] Handle different file formats
-3. [x] Handle no file selection
+1. [x] Handle no file selection while opening
+2. [ ] Overlay line while playing audio
+3. [ ] Overlay sin wave while playing audio

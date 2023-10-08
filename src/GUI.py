@@ -86,10 +86,9 @@ class MainWindow(QMainWindow):
 
         self.traverseComboBox.addItem("Left to Right")
         self.traverseComboBox.addItem("Right to Left")
-        self.traverseComboBox.addItem("Top to Down")
-        self.traverseComboBox.addItem("Down to Top")
-        self.traverseComboBox.addItem("Top Down Stacked")
-        self.traverseComboBox.addItem("Bottom Up Stacked")
+        self.traverseComboBox.addItem("Top to Botton")
+        self.traverseComboBox.addItem("Bottom to Top")
+        self.traverseComboBox.addItem("Radial")
 
         # self.drawerLayout.addWidget(QLabel("Drawer"))
         self.drawer.setLayout(self.drawerLayout)
@@ -365,16 +364,16 @@ class MainWindow(QMainWindow):
         self.worker = PlayAudio(self.song, self.SAMPLE_RATE)
         self.worker.start()
 
-        self.MoveHorizLine()
+        # self.MoveHorizLine()
             
 
-        duration = int(len(self.song) / self.SAMPLE_RATE)
-        refreshPeriod = 100
-        f = np.arange(0, self.img_width, 5)
-        ani = FuncAnimation(self.figure, self.animateHorizLine, frames = f,
-                            interval = 1/duration * self.img_width * self.T, blit = True, repeat = False)
-        # ani = FuncAnimation(self.figure, self.animateSinWave, init_func= self.INIT, frames = self.t, interval = 50, blit = True)
-        self.UpdateCanvas()
+        # duration = int(len(self.song) / self.SAMPLE_RATE)
+        # refreshPeriod = 100
+        # f = np.arange(0, self.img_width, 5)
+        # ani = FuncAnimation(self.figure, self.animateHorizLine, frames = f,
+        #                     interval = 1/duration * self.img_width * self.T, blit = True, repeat = False)
+        # # ani = FuncAnimation(self.figure, self.animateSinWave, init_func= self.INIT, frames = self.t, interval = 50, blit = True)
+        # self.UpdateCanvas()
 
     def INIT(self):
         self.wave, = self.ax[1].plot([], [], '.b', lw = 2)
@@ -455,29 +454,46 @@ class MainWindow(QMainWindow):
     def Msg(self, msg = None, t = 1):
         self.statusbar.showMessage(msg, t * 1000)
     
-    def MoveHorizLine(self):
-        self.vl = self.ax[0].axvline(0, ls = '-', color = 'r', lw = 1, zorder = 10)
-        self.UpdateCanvas()
+    # TODO: Overlay line on the image while playing audio
+    # def MoveHorizLine(self):
+    #     self.vl = self.ax[0].axvline(0, ls = '-', color = 'r', lw = 1, zorder = 10)
+    #     self.UpdateCanvas()
+    #
+    # def animateHorizLine(self, i):
+    #     self.vl.set_xdata([i, i])
+    #     return self.vl,
 
-    def animateHorizLine(self, i):
-        self.vl.set_xdata([i, i])
-        return self.vl,
+    # TODO: Overlay sin wave on the image while playing audio
+    # def animateSinWave(self, vl, i):
+    #     self.wave.set_data(self.t, y)
+    #     return self.wave,
 
-    def animateSinWave(self, vl, i):
-        self.wave.set_data(self.t, y)
-        return self.wave,
+    # IMAGE MAPPINGS:
 
-    def MapHorizontal_LR(self, skipw, skiph):
+    # Horizontal Left to Right Mapping
+    def Traverse_Horizontal_LR(self, skipw, skiph):
         for j in range(0, self.img_width, skipw):
             for i in range(0, self.img_height, skiph):
                 hue = self.imghsv[i][j][0]
                 self.hues.append(hue)
 
-    def MapHorizontal_LR(self, skipw, skiph):
-        for j in range(0, self.img_width, skipw):
+    def Traverse_Horizontal_RL(self, skipw, skiph):
+        for j in range(self.img_width, 0, -skipw):
             for i in range(0, self.img_height, skiph):
                 hue = self.imghsv[i][j][0]
                 self.hues.append(hue)
+
+    def Traverse_Vertical_BT(self, skipw, skiph):
+        pass
+
+    def Traverse_Vertical_TB(self, skipw, skiph):
+        pass
+
+    def Traverse_Stack_BU(self, skipw, skiph):
+        pass
+
+    def Traverse_Stack_TD(self, skipw, skiph):
+        pass
 
     # Piano notes function
     def Get_piano_notes(self):   
@@ -574,9 +590,13 @@ class MainWindow(QMainWindow):
     
         match self.traverseComboBox.currentText():
             case "Left to Right":
-                self.MapHorizontal_LR(5, 5)
+                self.Traverse_Horizontal_LR(5, 5)
             case "Right to Left":
-                self.MapHorizontal_RL(5, 5)
+                self.Traverse_Horizontal_RL(5, 5)
+            case "Top to Bottom":
+                self.Traverse_Vertical_TB(5, 5)
+            case "Bottom to Top":
+                self.Traverse_Vertical_BT(5, 5)
 
         self.hues = pd.DataFrame(self.hues, columns= ["hues"])
         self.hues['notes'] = self.hues.apply(lambda row : self.Hue2freq(row['hues'], freqs), axis = 1)

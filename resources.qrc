@@ -9,5 +9,8 @@
         <file alias="sonify.png">icons/icon_sonify.png</file>
         <file alias="stop.png">icons/icon_stop.png</file>
         <file alias="overlay.png">icons/icon_overlay.png</file>
+        <file alias="select.png">icons/icon_selection.png</file>
+        <file alias="download.png">icons/icon_download.png</file>
+        <file alias="save.png">icons/icon_save.png</file>
 </qresource>
 </RCC>
