@@ -350,7 +350,6 @@ class MainWindow(QMainWindow):
 
     #Function that handles the play button click
     def Play(self):
-<<<<<<< HEAD:src/GUI2.py
         self.PlayAudio()
         #self.MoveHorizLine()
 
@@ -362,7 +361,6 @@ class MainWindow(QMainWindow):
 
     def MoveHorizLine(self):
         pass
-=======
         if self.is_music_playing:
             self.is_music_playing = False
             self.worker.stop()
@@ -399,7 +397,6 @@ class MainWindow(QMainWindow):
 
         #self.worker.progress.connect(self.updateMusic)
         #self.worker.finished.connect(self.audioFinished)
->>>>>>> dbde5371f32fa815ea75b0760615ae35630ef3a6:src/GUI.py
 
     # Function for reading the image
     def ReadImage(self):
@@ -427,35 +424,29 @@ class MainWindow(QMainWindow):
 
         self.hues = pd.DataFrame(self.hues, columns= ["hues"])
 
-<<<<<<< HEAD:src/GUI2.py
-        #Get oiani frequencies
+        #Get piano frequencies
         scale_freqs2 = self.get_Piano_Notes()
-        #Map thses frequencies to hue values
+        #Map these frequencies to hue values
         self.hues['notes'] = self.hues.apply(lambda row : self.Hue2freq(row['hues'],scale_freqs2), axis = 1)
 
-        frequencies = self.hues['notes'].to_numpy() #convert to numpy array
+        self.frequencies = self.hues['notes'].to_numpy() #convert to numpy array
 
         self.song = [] #array to store piano waveforms
 
         self.SAMPLE_RATE = 44100
 
-        T = 0.2 #duration of each waveform
-=======
+       
         #Define frequencies that make up A-Harmonic Minor Scale
-        scale_freqs = [220.00, 246.94 ,261.63, 293.66, 329.63, 349.23, 415.30] 
-        self.hues['notes'] = self.hues.apply(lambda row : self.Hue2freq(row['hues'],scale_freqs), axis = 1)
+        #scale_freqs = [220.00, 246.94 ,261.63, 293.66, 329.63, 349.23, 415.30] 
+        #self.hues['notes'] = self.hues.apply(lambda row : self.Hue2freq(row['hues'],scale_freqs), axis = 1)
 
-        self.frequencies = self.hues['notes'].to_numpy()
+        #self.frequencies = self.hues['notes'].to_numpy()
 
-        self.song = np.array([])
         self.SAMPLE_RATE = int(self.sampleRateComboBox.currentText().split("Hz")[0])
-        self.T = 0.1
+        self.T = 0.1   #duration of each waveform
         self.t = np.linspace(0, self.T, int(self.T * self.SAMPLE_RATE), endpoint = False)
-
-        amp = 0.5
         
         self.npixels = len(self.frequencies)
->>>>>>> dbde5371f32fa815ea75b0760615ae35630ef3a6:src/GUI.py
 
         self.statusbar.addPermanentWidget(self.progressbar_sonify)
 
@@ -464,7 +455,6 @@ class MainWindow(QMainWindow):
         #     note = amp * np.sin(2 * np.pi * self.frequencies[i] * self.t)
         #     self.song = np.concatenate([self.song, note])
 
-<<<<<<< HEAD:src/GUI2.py
         amp = 100
 
         for i in range(len(frequencies)):
@@ -499,24 +489,7 @@ class MainWindow(QMainWindow):
         note_freqs[''] = 0.0 # stop
 
         return note_freqs
-    
-=======
-        octaves = np.array([0.5, 1, 2, 3, 4, 5, 6, 7, 8])
 
-        for i in range(self.npixels):
-            self.progressbar_sonify.setValue(int(i / self.npixels * 100))
-            octave = rand.choice(octaves)
-            note = amp * np.sin(2 * np.pi * octave * self.frequencies[i] * self.t)
-            self.song = np.concatenate([self.song, note])
-
-
-        duration = int(len(self.song) / self.SAMPLE_RATE)
-
-        self.statusbar.removeWidget(self.progressbar_sonify)
-
-        self.playButton.setEnabled(True)
-
->>>>>>> dbde5371f32fa815ea75b0760615ae35630ef3a6:src/GUI.py
     # Helper function for showing message in the statusbar
     def Msg(self, msg = None, t = 1):
         self.statusbar.showMessage(msg, t * 1000)
@@ -544,21 +517,6 @@ class MainWindow(QMainWindow):
                 hue = self.imghsv[i][j][0]
                 self.hues.append(hue)
 
-<<<<<<< HEAD:src/GUI2.py
-    # Helper function to update canvas
-    def UpdateCanvas(self):
-        self.canvas.draw()
-
-    def MapHorizontal_LR(self, skipw, skiph):
-        for j in range(0, self.img_width, int(skipw % self.img_width)):
-            for i in range(0, self.img_height, int(skiph % self.img_height)):
-                hue = self.imghsv[i][j][0]
-                self.hues.append(hue)
-                # np.concatenate([self.hues, hue])
-"""
----------------------------------------------------------------------------------------------------------------------------------------------------------------
-"""
-=======
     def Traverse_Horizontal_RL(self, skipw, skiph):
         for j in range(self.img_width, 0, -skipw):
             for i in range(0, self.img_height, skiph):
@@ -716,7 +674,6 @@ class MainWindow(QMainWindow):
         self.playButton.setEnabled(True)
         self.toolbar_download.setEnabled(True)
 
->>>>>>> dbde5371f32fa815ea75b0760615ae35630ef3a6:src/GUI.py
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = MainWindow()
