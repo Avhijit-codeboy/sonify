@@ -55,16 +55,6 @@ class MainWindow(QMainWindow):
         self.is_music_playing = False
         self._img = None
 
-    def ConvertStoHMS(self, seconds):
-        min, sec = divmod(seconds, 60)
-        hour, min = divmod(min, 60)
-        if hour == 0:
-            return '%02d:%02d' % (min, sec)
-        elif min == 0:
-            return '%02d' % (sec)
-
-        return '%d:%02d:%02d' % (hour, min, sec)
-
     # Function for creating the image pane
     def CreateImagePane(self):
         self.InitCanvas()
@@ -136,11 +126,6 @@ class MainWindow(QMainWindow):
         self.playButton.setEnabled(False)
         self.playButton.clicked.connect(self.Play)
 
-        # Duration Label
-
-        self.durationLabelText = QLabel("Duration: ")
-        self.durationLabel = QLabel("")
-
         # Drawer Layout
         self.drawerLayout.addWidget(self.traverseLabel, 0, 0)
         self.drawerLayout.addWidget(self.traverseComboBox, 0, 1)
@@ -160,19 +145,12 @@ class MainWindow(QMainWindow):
 
         self.drawerLayout.setRowStretch(10, 1)
 
-        self.drawerLayout.addWidget(self.durationLabelText, 6, 0, Qt.AlignmentFlag.AlignHCenter)
-        self.drawerLayout.addWidget(self.durationLabel, 6, 1, Qt.AlignmentFlag.AlignHCenter)
-
         # Drawer Max Width
         self.drawer.setMinimumWidth(self.drawer.minimumWidth())
         self.drawer.setMaximumWidth(300)
     
     def Download(self):
-        file = QFileDialog().getSaveFileName()
-        if file != "":
-            wavfile.write(file[0], self.SAMPLE_RATE, self.song)
-        else:
-            self.Msg("Please select a file to save", 5)
+        wavfile.write("dd.wav", self.SAMPLE_RATE, self.song)
 
     # Exit Function
     def Exit(self):
@@ -229,6 +207,7 @@ class MainWindow(QMainWindow):
         self.InitToolbar()
         self.InitMainWidget()
         self.InitStatusBar()
+
 
         self.setCentralWidget(self.mainWidget)
 
@@ -311,7 +290,6 @@ class MainWindow(QMainWindow):
 
         self.toolbar_download = QAction(QIcon(":/icons/save.png"), "Download", self)
         self.toolbar_download.triggered.connect(self.Download)
-        self.toolbar_download.setDisabled(True)
 
 
         self.toolbar.addAction(self.toolbar_open)
@@ -370,9 +348,8 @@ class MainWindow(QMainWindow):
 
         duration = int(len(self.song) / self.SAMPLE_RATE)
         refreshPeriod = 100
-        f = np.arange(0, self.img_width, 5)
-        ani = FuncAnimation(self.figure, self.animateHorizLine, frames = f,
-                            interval = 1/duration * self.img_width * self.T, blit = True, repeat = False)
+        ani = FuncAnimation(self.figure, self.animateHorizLine, frames = np.arange(0, self.img_width, 5),
+                            interval = duration, blit = True, repeat = False)
         # ani = FuncAnimation(self.figure, self.animateSinWave, init_func= self.INIT, frames = self.t, interval = 50, blit = True)
         self.UpdateCanvas()
 
@@ -446,6 +423,7 @@ class MainWindow(QMainWindow):
 
 
         duration = int(len(self.song) / self.SAMPLE_RATE)
+        print(duration)
 
         self.statusbar.removeWidget(self.progressbar_sonify)
 
@@ -466,12 +444,6 @@ class MainWindow(QMainWindow):
     def animateSinWave(self, vl, i):
         self.wave.set_data(self.t, y)
         return self.wave,
-
-    def MapHorizontal_LR(self, skipw, skiph):
-        for j in range(0, self.img_width, skipw):
-            for i in range(0, self.img_height, skiph):
-                hue = self.imghsv[i][j][0]
-                self.hues.append(hue)
 
     def MapHorizontal_LR(self, skipw, skiph):
         for j in range(0, self.img_width, skipw):
@@ -569,14 +541,7 @@ class MainWindow(QMainWindow):
 
         self.hues = []
         self.img_height, self.img_width, self.img_nlayers = self.imghsv.shape
-
-        # Handle traversing of image
-    
-        match self.traverseComboBox.currentText():
-            case "Left to Right":
-                self.MapHorizontal_LR(5, 5)
-            case "Right to Left":
-                self.MapHorizontal_RL(5, 5)
+        self.MapHorizontal_LR(5, 5)
 
         self.hues = pd.DataFrame(self.hues, columns= ["hues"])
         self.hues['notes'] = self.hues.apply(lambda row : self.Hue2freq(row['hues'], freqs), axis = 1)
@@ -607,13 +572,46 @@ class MainWindow(QMainWindow):
             self.song = np.concatenate([self.song, note])
 
         duration = int(len(self.song) / self.SAMPLE_RATE)
-
-        self.durationLabel.setText(str(self.ConvertStoHMS(duration)))
+        print(duration)
 
         self.statusbar.removeWidget(self.progressbar_sonify)
         self.playButton.setEnabled(True)
-        self.toolbar_download.setEnabled(True)
 
+    #     self.d = SonifyScales(self.progressbar_sonify, self.frequencies, self.song, self.t)
+
+    #     self.d.start()
+    #     self.sonifyButton.setDisabled(True)
+    #     
+    #     self.d.progress.connect(lambda x: self.progressbar_sonify.setValue(x))
+    #     self.d.finished.connect(self.sonifyFinished)
+    # 
+    # def sonifyFinished(self):
+    #     print(self.song)
+    #     self.sonifyButton.setEnabled(True)
+    #     self.playButton.setEnabled(True)
+    #     self.statusbar.removeWidget(self.progressbar_sonify)
+
+
+# class SonifyScales(QThread):
+#     finished = Signal()
+#     progress = Signal(int)
+#
+#     def __init__(self, progressbar, frequencies, song, t):
+#         super().__init__()
+#         self.progressbar = progressbar
+#         self.frequencies = frequencies
+#         self.nPixels = int(len(self.frequencies))
+#         self.song = song
+#         self.t = t
+#
+#     def run(self):
+#         for i in range(self.nPixels):
+#             self.progress.emit(int(i / self.nPixels * 100))
+#             val = self.frequencies[i]
+#             note  = 0.5*np.sin(2*np.pi*val*self.t)
+#             self.song = np.concatenate([self.song, note])
+#         self.finished.emit()
+#
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = MainWindow()
